@@ -1,6 +1,6 @@
 # Nuki Telegram Bot
 
-A simple Telegram bot to control a [Nuki](https://nuki.io/] smart lock via the Nuki Bridge HTTP API.
+A simple Telegram bot to control a [Nuki] (https://nuki.io/) smart lock via the Nuki Bridge HTTP API.
 
 The bot is designed to be self‑hosted (for example on a small VPS) and supports:
 
