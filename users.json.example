@@ -1,0 +1,14 @@
+{
+  "users": {
+    "123456789": {
+      "name": "John Doe",
+      "allowed": ["lock", "unlock", "open", "lockngo", "status"],
+      "lang": "en"
+    },
+    "987654321": {
+      "name": "Mario Rossi",
+      "allowed": ["lock", "status"],
+      "lang": "it"
+    }
+  }
+}
