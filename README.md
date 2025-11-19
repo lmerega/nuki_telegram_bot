@@ -16,204 +16,158 @@
   <img src="https://img.shields.io/badge/Raspberry%20Pi-compatible-red?style=flat-square" alt="Raspberry Pi compatible" />
   <img src="https://img.shields.io/badge/Python-3.10%2B-green?style=flat-square" alt="Python 3.10+" />
   <img src="https://img.shields.io/badge/License-MIT-lightgrey?style=flat-square" alt="MIT License" />
+  <br>
+  <a href="https://github.com/dauden1184/RaspiNukiBridge">
+    <img src="https://img.shields.io/badge/Powered%20by-RaspiNukiBridge-blue?style=flat-square" alt="Powered by RaspiNukiBridge"/>
+  </a>
 </p>
 
 > ⚠️ **Compatibility Notice**  
-> This bot works **ONLY** with **[RaspiNukiBridge](https://github.com/lmerega/RaspiNukiBridge)**.  
-> It does **not** support the official Nuki Bridge HTTP API directly.
+> This bot works **ONLY** with **RaspiNukiBridge**.  
+> It does **not** support the official Nuki Bridge HTTP API.
 
 ---
 
 ## Overview
 
-**Nuki Telegram Bot** is a self‑hosted Telegram bot that lets you control a [Nuki](https://nuki.io/) smart lock through a **RaspiNukiBridge** instance (for example running on a Raspberry Pi).
+**Nuki Telegram Bot** is a self-hosted Telegram bot that lets you control a [Nuki](https://nuki.io/) Smart Lock through **RaspiNukiBridge** (running for example on a Raspberry Pi).  
+It is designed to be simple, secure, production-ready and privacy-friendly.
 
-The bot is designed to be simple, privacy‑friendly and production ready:
+Main features include:
 
-- Self‑hosted (VPS, home server, Raspberry Pi, etc.)
-- Fine‑grained per‑user permissions (lock, unlock, open door, lock'n'go, status)
-- Admin user management with inline keyboards
-- Multi‑language support (Italian / English) per user
-- Safety confirmation before door unlatch (open)
-- Configuration via environment variables / `.env` file
-- Easy service management with `systemd`
+- Self-hosting support (Raspberry Pi / VPS / Home Server)
+- Per-user permissions (lock, unlock, open, lock’n’go, status)
+- Admin UI with inline keyboards
+- Multi-language support (IT/EN)
+- Secure door-unlatch confirmation
+- `.env`-based configuration
+- systemd-friendly execution
 
 ---
 
 ## Features
 
-### User features
+### User Features
 
-- `/start` command with a main inline keyboard and permission summary
-- `/id` command to display your `chat_id` and basic profile info
-- Inline buttons to:
-  - Lock / unlock the door
-  - Open the door (unlatch) — with confirmation
-  - Lock'n'Go
-  - Read the current lock state
-  - Change language (Italian / English)
-- Per‑user interface language (English or Italian) without affecting others
+- `/start` to display main keyboard + permissions summary  
+- `/id` to show your chat ID  
+- Inline UI for:
+  - Lock / Unlock  
+  - Open (unlatch) with confirmation  
+  - Lock’n’Go  
+  - Lock status  
+  - Language switch (IT/EN)
 
-### Admin features
+Each user can independently choose their UI language.
 
-Admins are Telegram chat IDs listed in the `OWNERS` environment variable. Admins:
+---
 
-- See additional buttons in the main menu
-- Can **add new users** interactively (by chat ID and optional name)
-- Can **list users** and, for each user:
-  - Toggle individual permissions
-  - Grant all permissions
-  - Revoke all permissions
-  - Delete the user
-- Always have full permissions regardless of what is stored in `users.json`
+### Admin Features
 
-### Permissions model
+Admins are Telegram chat IDs listed in the `OWNERS` variable.
 
-Each user can have a subset of these internal permission keys:
+Admins can:
 
-- `lock` – lock the door
-- `unlock` – unlock the door
-- `open` – unlatch / open door
-- `lockngo` – lock'n'go
-- `status` – read current state
+- Add new users interactively
+- List existing users
+- Grant/Revoke individual permissions
+- Grant/Revoke all permissions
+- Delete users
+- Always override all permissions
 
-These permission identifiers are always in **English** internally, independent of the UI language.
+Permission keys (English only):
+
+- `lock`
+- `unlock`
+- `open`
+- `lockngo`
+- `status`
 
 ---
 
 ## Compatibility
 
-> ✅ **Supported:** Nuki smart lock controlled via **RaspiNukiBridge**  
-> ❌ **Not supported:** Direct usage of the official Nuki Bridge HTTP API
+> This bot is **compatible only with RaspiNukiBridge**.  
+> It cannot communicate with the official Nuki Bridge API.
 
-This bot assumes that your Nuki smart lock is exposed through a running **RaspiNukiBridge** instance (for example on a Raspberry Pi in your LAN).  
-The bot communicates only with that bridge and does not talk to Nuki cloud services.
-
-If you currently use only the official Nuki HTTP Bridge (without RaspiNukiBridge), you must first deploy RaspiNukiBridge and configure it for your lock before using this bot.
+You must have RaspiNukiBridge running and accessible.  
+The bot communicates exclusively with it.
 
 ---
 
 ## Architecture
 
-The project is structured into a few small, focused modules:
+- **`main.py`** – Entrypoint, loads config and users, initializes Telegram bot  
+- **`config.py`** – Loads config into a dataclass  
+- **`users.py`** – Handles `users.json` and permission logic  
+- **`nuki.py`** – Wrapper around RaspiNukiBridge endpoints  
+- **`bot_handlers.py`** – Commands, callbacks, inline keyboards  
+- **`i18n.py`** – Simple runtime translation (English + Italian)
 
-- **`main.py`**  
-  Entrypoint. Loads configuration and users, sets up the Telegram `Application`, registers handlers and starts polling.
-
-- **`config.py`**  
-  Loads configuration from environment variables into a `BotConfig` dataclass.
-
-- **`users.py`**  
-  Manages known users and their permissions, backed by `users.json`.  
-  All internal permission keys are English: `lock`, `unlock`, `open`, `lockngo`, `status`.
-
-- **`nuki.py`**  
-  Wraps the HTTP API exposed by RaspiNukiBridge (e.g. lock action / status endpoints) and exposes small helper functions to the rest of the bot.
-
-- **`bot_handlers.py`**  
-  Contains all Telegram bot handlers, inline keyboards, admin flows and text processing.
-
-- **`i18n.py`**  
-  Minimal helper for internationalization / translations (currently Italian and English).  
-  All strings in the code are English; translations are applied at runtime based on each user's preferred language.
-
-Runtime data that can change (users, permissions, preferred language, etc.) is stored in **`users.json`**, not in environment variables.
+Runtime user data is stored in `users.json`.
 
 ---
 
 ## Requirements
 
-- **Python** 3.10+
-- **RaspiNukiBridge** running and reachable from the bot
-- A **Nuki** smart lock configured with RaspiNukiBridge
-- A **Telegram bot token** (from [BotFather](https://core.telegram.org/bots#6-botfather))
+- Python **3.10+**
+- A Nuki Smart Lock managed through **RaspiNukiBridge**
+- A Telegram bot token (`BotFather`)
 
-Install Python dependencies:
+Install requirements:
 
 ```bash
 pip install -r requirements.txt
 ```
 
-> 💡 It is strongly recommended to use a virtual environment:
->
-> ```bash
-> python -m venv .venv
-> source .venv/bin/activate
-> pip install -r requirements.txt
-> ```
-
----
-
-## Installation
-
-Clone the repository and install dependencies:
+Virtual environment recommended:
 
 ```bash
-cd /srv
-git clone https://github.com/lmerega/nuki_telegram_bot.git
-cd nuki_telegram_bot
-
 python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-Create your own configuration by copying the example files (if present) or creating a new `.env` and `users.json` as described below.
+---
+
+## Installation
+
+```bash
+git clone https://github.com/lmerega/nuki_telegram_bot
+cd nuki_telegram_bot
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+```
 
 ---
 
 ## Configuration
 
-The bot reads configuration from **environment variables**.  
-In development you can use a local `.env` file, and in production you can either keep using `.env` or point `systemd` to an `EnvironmentFile`.
+The bot reads config from environment variables.  
+Use a local `.env` file for development or a systemd `EnvironmentFile` in production.
 
 ### Example `.env`
 
 ```env
-# Telegram
 TELEGRAM_BOT_TOKEN=your_telegram_bot_token_here
 
-# RaspiNukiBridge / Nuki lock
 NUKI_TOKEN=your_raspinukibridge_token_here
 NUKI_BRIDGE_HOST=192.168.1.50
 NUKI_BRIDGE_PORT=8080
 NUKI_ID=123456789
 NUKI_DEVICE_TYPE=0
 
-# Comma-separated list of Telegram chat IDs that are admins
 OWNERS=123456789,987654321
 
-# Path to the JSON file where user data is stored
 USERS_FILE=/srv/nuki_telegram_bot/users.json
 ```
 
-> 🔑 **Notes**
->
-> - `TELEGRAM_BOT_TOKEN` comes from BotFather.
-> - `NUKI_TOKEN`, `NUKI_BRIDGE_HOST`, `NUKI_BRIDGE_PORT`, `NUKI_ID`, `NUKI_DEVICE_TYPE` must match your **RaspiNukiBridge** configuration.
-> - `OWNERS` is a comma‑separated list of chat IDs that will have admin privileges in the bot.
-> - `USERS_FILE` should point to a writable JSON file; it will be created/updated automatically by the bot.
-
-### Environment variables summary
-
-| Variable            | Required | Description                                              |
-| ------------------- | :------: | -------------------------------------------------------- |
-| `TELEGRAM_BOT_TOKEN`|   yes    | Telegram bot token                                       |
-| `NUKI_TOKEN`        |   yes    | API token for RaspiNukiBridge                            |
-| `NUKI_BRIDGE_HOST`  |   yes    | IP/hostname where RaspiNukiBridge is running            |
-| `NUKI_BRIDGE_PORT`  |   yes    | Port of RaspiNukiBridge HTTP API                        |
-| `NUKI_ID`           |   yes    | Nuki lock ID                                            |
-| `NUKI_DEVICE_TYPE`  |   yes    | Nuki device type (e.g. `0` for Smart Lock)              |
-| `OWNERS`            |   yes    | Comma‑separated list of admin chat IDs                  |
-| `USERS_FILE`        |   yes    | Path to `users.json` file                               |
-
 ---
 
-## Users file (`users.json`)
+## Users File (`users.json`)
 
-Users are stored in `users.json` and automatically created/updated via the admin inline UI.
-
-An example structure:
+Example:
 
 ```json
 {
@@ -232,88 +186,39 @@ An example structure:
 }
 ```
 
-- `allowed` is a list of **English** permission identifiers:
-  - `lock`     → lock the door  
-  - `unlock`   → unlock the door  
-  - `open`     → unlatch / open door  
-  - `lockngo`  → lock'n'go  
-  - `status`   → read current state  
-- `lang` is the preferred language for that user (`"it"` or `"en"`).
-
-> 📝 **Best practice**  
-> Version control only a `users.example.json` file, **not** your real `users.json` (which contains real chat IDs and permissions).
-
 ---
 
-## Running the bot (development)
+## Running the Bot (Development)
 
-1. **Create and activate a virtualenv** (optional but recommended):
-
-   ```bash
-   cd /srv/nuki_telegram_bot
-   python -m venv .venv
-   source .venv/bin/activate
-   pip install -r requirements.txt
-   ```
-
-2. **Create your `.env`** file based on the example above and fill in your tokens and host/port.
-
-3. **Run the bot**:
-
-   ```bash
-   python main.py
-   ```
-
-The bot uses long polling (`run_polling`).  
-Once it is running, open Telegram, start a chat with your bot and send:
-
-```text
-/start
+```bash
+source .venv/bin/activate
+python main.py
 ```
+
+Send `/start` to your bot on Telegram.
 
 ---
 
 ## Usage
 
-### Regular users
-
-Available commands (depending on granted permissions):
-
-- `/start` – Shows the main inline keyboard and a short summary of your permissions.
-- `/id` – Shows your `chat_id` and basic profile info (useful for admins when adding new users).
-
-From the main inline keyboard users can:
-
-- Lock / unlock the door
-- Open the door (unlatch) – with a confirmation step
-- Use Lock'n'Go
-- Read current lock state
-- Change their language (Italian / English)
-
-Each user can switch their own language; only the **UI text** changes, while internal logic and permission keys remain in English.
+### Regular Users
+- `/start`, `/id`
+- Inline controls for the lock
+- Language selection
 
 ### Admins
+- Add users  
+- Manage permissions  
+- Delete users  
+- View user list  
 
-Admins are the chat IDs listed in the `OWNERS` environment variable.
-
-In addition to regular user features, admins see extra buttons to:
-
-- **Add user** – Interactive flow to create a new user by chat ID and optional name.
-- **User list** – List of known users with options to:
-  - Toggle individual permissions
-  - Grant all permissions
-  - Revoke all permissions
-  - Delete the user
-
-Admins can always perform **every action** regardless of their `allowed` permissions list in `users.json`.
+Admins bypass all permission restrictions.
 
 ---
 
-## Deployment with systemd (example)
+## Deployment with systemd
 
-On a typical Linux server you can keep the bot running with `systemd`.
-
-Example unit file: `/etc/systemd/system/nuki-bot.service`
+Example service file:
 
 ```ini
 [Unit]
@@ -323,93 +228,61 @@ After=network.target
 [Service]
 WorkingDirectory=/srv/nuki_telegram_bot
 ExecStart=/srv/nuki_telegram_bot/.venv/bin/python /srv/nuki_telegram_bot/main.py
-
-# Load environment variables for the bot
 EnvironmentFile=/srv/nuki_telegram_bot/.env
-
 Restart=always
 RestartSec=5
-
-# It is recommended to run as a dedicated user instead of root
 #User=nuki
-#Group=nuki
 
 [Install]
 WantedBy=multi-user.target
 ```
 
-Enable and start the service:
+Enable:
 
 ```bash
 sudo systemctl daemon-reload
 sudo systemctl enable nuki-bot.service
 sudo systemctl start nuki-bot.service
-sudo systemctl status nuki-bot.service
 ```
 
 ---
 
-## Security notes
+## Security Notes
 
-- Do **not** commit your real `.env` or `users.json` to the repository.
-- Keep your **Telegram bot token** and **RaspiNukiBridge token** secret.
-- Run the bot under a **dedicated unprivileged user** in production.
-- Restrict network access to the RaspiNukiBridge HTTP interface (firewall, VPN, or local LAN only).
-- The "open door" (unlatch) action always includes an additional confirmation step with a one‑time token to prevent accidental taps or interaction with old messages.
-- Regularly update your dependencies and system packages to receive security fixes.
+- Never commit `.env` or `users.json`
+- Use a dedicated system user
+- Restrict access to RaspiNukiBridge
+- Unlatch confirmation requires one-time token
+- Keep system updated
 
 ---
 
-## Development notes
+## Development Notes
 
-- Code is organized into small modules (`config.py`, `users.py`, `nuki.py`, `bot_handlers.py`, `i18n.py`, etc.) to keep concerns separated.
-- Configuration is centralized in `config.py` using a dataclass for clarity and type safety.
-- User data is persisted to `users.json` through the admin interface; editing the file manually should be done with care and only when the bot is stopped.
-- When adding new features:
-  - Keep all user‑visible strings in English and add translations via `i18n.py`.
-  - Reuse the existing permission model (`lock`, `unlock`, `open`, `lockngo`, `status`) where possible.
-- Pull requests and issues are welcome on GitHub.
+- Translations stored in `i18n.py`
+- Code split into clear modules
+- Keep permissions in English internally
+- PRs welcome
 
 ---
 
 ## FAQ
 
-**Q: Does this bot work with the official Nuki Bridge HTTP API?**  
-**A:** No. This bot is designed to work **only** with **RaspiNukiBridge**. You must have RaspiNukiBridge running and properly configured for your Nuki lock.
+**Does it support the official Nuki Bridge API?**  
+No, only RaspiNukiBridge.
 
----
+**Can I run it remotely (VPS)?**  
+Yes, if it can reach RaspiNukiBridge (VPN recommended).
 
-**Q: Can I run the bot on a VPS while RaspiNukiBridge is at home?**  
-**A:** Yes, as long as the VPS can reach RaspiNukiBridge over the network (for example via VPN or a securely exposed HTTPS endpoint). Make sure you secure access to the bridge (firewall, authentication, VPN, etc.).
+**Multiple locks?**  
+Not yet; requires code extension.
 
----
-
-**Q: Can I control multiple locks?**  
-**A:** The current configuration is designed around a **single lock** (`NUKI_ID`, `NUKI_DEVICE_TYPE`). Controlling multiple locks would require either multiple deployments (one per lock) or extending the code to support multiple devices and per‑user lock selection.
-
----
-
-**Q: What happens if `users.json` is deleted or corrupted?**  
-**A:** If `users.json` is missing, the bot will start with no regular users and only the admins listed in `OWNERS` will be able to manage access and recreate entries. If the file is corrupted, you may need to restore it from a backup or rebuild it via the admin UI.
-
----
-
-**Q: How do I find my Telegram chat ID to add a new user?**  
-**A:** Ask the user to start the bot and run the `/id` command. The bot will respond with their chat ID, which you can then use from the admin interface to grant permissions.
-
----
-
-**Q: How do I change a user’s language?**  
-**A:** Users can change their own language from the inline menu (language button). Admins can also adjust the `lang` value in `users.json` manually (preferably while the bot is stopped) or through the admin flows if supported in the UI.
-
----
-
-**Q: Can the bot be used without Internet access?**  
-**A:** Once the bot is set up, it needs Internet access only to talk to the Telegram Bot API. Communication with RaspiNukiBridge can stay fully within your local network.
+**What if users.json is deleted?**  
+Admins can recreate everything.
 
 ---
 
 ## License
 
-This project is licensed under the **MIT License**.  
-See the [`LICENSE`](LICENSE) file for full license text.
+MIT License.  
+See `LICENSE`.
