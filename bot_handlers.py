@@ -35,7 +35,7 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 def _is_stranger(chat_id: int) -> bool:
-    """True se NON è admin e NON è presente in users.json."""
+    """True if user is NOT admin and NOT present in users.json."""
     return not is_admin(chat_id) and not is_known(chat_id)
 
 
@@ -93,7 +93,7 @@ def build_main_menu(chat_id: int) -> InlineKeyboardMarkup:
     )
     buttons.append(row3)
 
-    # Language selector (available for known users)
+    # Language selector
     buttons.append(
         [
             InlineKeyboardButton(
@@ -195,7 +195,7 @@ async def cmd_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
 async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     chat_id = update.effective_chat.id
 
-    # Unknown users → no menu
+    # Unknown users → fixed message, no menu
     if _is_stranger(chat_id):
         await update.effective_message.reply_text("Silence is golden")
         return
@@ -216,7 +216,7 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 
 async def cmd_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    # Alias di /start
+    # Alias of /start
     return await cmd_start(update, context)
 
 
@@ -224,7 +224,7 @@ async def cmd_id(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     chat = update.effective_chat
     user = update.effective_user
 
-    # Lingua da usare per i messaggi del bot verso questo utente
+    # Language for bot responses to this user
     lang = get_user_lang(chat.id)
 
     cfg = get_user_cfg(chat.id)
@@ -233,7 +233,7 @@ async def cmd_id(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
     lines = []
 
-    # --- Info Telegram ---
+    # --- Telegram info ---
     lines.append("Telegram:")
     lines.append(f"- chat_id: {chat.id}")
     lines.append(f"- user_id: {user.id}")
@@ -246,13 +246,13 @@ async def cmd_id(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     lines.append(f"- first_name: {user.first_name or '(none)'}")
     lines.append(f"- last_name: {user.last_name or '(none)'}")
 
-    # language_code di Telegram (non quella del bot)
+    # Telegram language_code (not bot language)
     if getattr(user, "language_code", None):
         lines.append(f"- telegram_lang: {user.language_code}")
 
-    lines.append("")  # riga vuota
+    lines.append("")  # empty line
 
-    # --- Info lato bot ---
+    # --- Bot-side info ---
     lines.append("Bot:")
     lines.append(f"- known_user: {'yes' if known else 'no'}")
     lines.append(f"- admin: {'yes' if admin_flag else 'no'}")
@@ -273,7 +273,7 @@ async def cmd_id(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
     text = "\n".join(lines)
 
-    # Per unknown users we do not show menu
+    # For unknown non-admin users we do NOT show the menu
     reply_markup = build_main_menu(chat.id) if (known or admin_flag) else None
 
     await update.effective_message.reply_text(
@@ -457,16 +457,16 @@ def _build_user_edit_keyboard(chat_id: int, target_id: int) -> InlineKeyboardMar
 async def _show_user_list(update: Update, chat_id: int) -> None:
     """Show a list of users and a keyboard to select one to edit.
 
-    Gli owner (admin) definiti in OWNERS non vengono mostrati nella lista.
+    Owners (admin) defined in OWNERS are not shown in the list.
     """
     lang = get_user_lang(chat_id)
     users_list = get_users_sorted()
 
-    # Prendiamo la lista degli owner dal config
+    # Owners from config
     cfg = get_config()
     owners = set(cfg.owners)
 
-    # Filter out the owner
+    # Filter out owners from user list
     visible_users = [(uid, ucfg) for uid, ucfg in users_list if uid not in owners]
 
     if not visible_users:
@@ -487,7 +487,7 @@ async def _show_user_list(update: Update, chat_id: int) -> None:
             ]
         )
 
-    # Riga finale: bottone Back per tornare al menu admin
+    # Final row: Back button to admin menu
     kb_rows.append(
         [
             InlineKeyboardButton(
@@ -518,7 +518,7 @@ async def on_button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     lang = get_user_lang(chat_id)
     user_data: Dict = context.user_data
 
-    # Estranei: nessuna azione su pulsanti
+    # Unknown users: no actions on buttons
     if _is_stranger(chat_id):
         await query.message.reply_text("Silence is golden")
         return
@@ -585,24 +585,6 @@ async def on_button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             await query.message.reply_text(header, reply_markup=kb)
             return
 
-        if cmd == "toggle" and rest:
-            try:
-                target_part, perm_part = rest[0].split(":", 1)
-                target_id = int(target_part)
-                perm = perm_part
-            except Exception:
-                await query.message.reply_text(t("user_not_found", lang, uid="?"))
-                return
-            toggle_permission(target_id, perm)
-            target_cfg = get_user_cfg(target_id) or {}
-            header = t("edit_user_header", lang) + f"{target_cfg.get('name')} [{target_id}]"
-            kb = _build_user_edit_keyboard(chat_id, target_id)
-            try:
-                await query.message.edit_text(header, reply_markup=kb)
-            except BadRequest:
-                await query.message.reply_text(header, reply_markup=kb)
-            return
-
         if cmd in {"all", "none", "delete"} and rest:
             target_raw = rest[0]
             try:
@@ -617,7 +599,21 @@ async def on_button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
                 revoke_all_permissions(target_id)
             elif cmd == "delete":
                 delete_user(target_id)
-                await query.message.reply_text(t("user_deleted", lang, uid=target_id))
+                # Show confirmation + Back button
+                kb = InlineKeyboardMarkup(
+                    [
+                        [
+                            InlineKeyboardButton(
+                                bt("perm_back", lang),
+                                callback_data="admin:back",
+                            )
+                        ]
+                    ]
+                )
+                await query.message.reply_text(
+                    t("user_deleted", lang, uid=target_id),
+                    reply_markup=kb,
+                )
                 return
 
             target_cfg = get_user_cfg(target_id) or {}
@@ -630,7 +626,7 @@ async def on_button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             return
 
         if cmd == "back":
-            # Uscita da qualsiasi "mode" admin (es. add_user)
+            # Exit from any admin mode (e.g. add_user)
             context.user_data.pop("mode", None)
             await query.message.reply_text(
                 t("menu_actions", lang), reply_markup=build_main_menu(chat_id)
@@ -667,7 +663,7 @@ async def on_button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if data.startswith("cmd:"):
         _, cmd = data.split(":", 1)
 
-        # For convenience reuse the same functions used for /commands
+        # Reuse the same functions used for /commands
         fake_update = Update(
             update.update_id,
             message=query.message,
@@ -733,7 +729,7 @@ async def unknown_command(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     chat = update.effective_chat
     chat_id = chat.id if chat else None
 
-    # Estranei → risposta fissa
+    # Unknown users → fixed response
     if chat_id is not None and _is_stranger(chat_id):
         await update.effective_message.reply_text("Silence is golden")
         return
