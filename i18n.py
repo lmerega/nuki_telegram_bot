@@ -42,6 +42,7 @@ MESSAGES: Dict[str, Dict[str, str]] = {
         "it": "Testo non riconosciuto. Usa i pulsanti qui sotto.",
         "en": "Text not recognized. Use the buttons below.",
     },
+
     # Nuki actions
     "sending_lock": {
         "it": "Invio comando CHIUDI...",
@@ -109,6 +110,7 @@ MESSAGES: Dict[str, Dict[str, str]] = {
         "it": "🔋 Batteria OK (non critica).",
         "en": "🔋 Battery OK (not critical).",
     },
+
     # State summary
     "state_no_data": {
         "it": "Nessun dato di stato disponibile.",
@@ -134,6 +136,7 @@ MESSAGES: Dict[str, Dict[str, str]] = {
         "it": "Ultimo aggiornamento (UTC): {ts}",
         "en": "Last update (UTC): {ts}",
     },
+
     # Users / admin
     "no_users": {
         "it": "Nessun utente configurato.",
@@ -164,13 +167,17 @@ MESSAGES: Dict[str, Dict[str, str]] = {
             "Aggiunta nuovo utente:\n"
             "Invia ora un messaggio con il formato:\n"
             "<chat_id> [nome]\n"
-            "Esempio: 123456789 Mario Rossi"
+            "Esempio: 123456789 Mario Rossi\n"
+            "\n"
+            "Puoi inviare /cancel per annullare."
         ),
         "en": (
             "Add a new user:\n"
             "Send a message with the format:\n"
             "<chat_id> [name]\n"
-            "Example: 123456789 John Doe"
+            "Example: 123456789 John Doe\n"
+            "\n"
+            "You can send /cancel to abort."
         ),
     },
     "add_user_invalid_format": {
@@ -181,6 +188,17 @@ MESSAGES: Dict[str, Dict[str, str]] = {
         "it": "Utente {uid} salvato con nome \"{name}\".",
         "en": "User {uid} saved with name \"{name}\".",
     },
+
+    # Cancel operation
+    "operation_cancelled": {
+        "it": "Operazione annullata. Sei tornato al menu principale.",
+        "en": "Operation cancelled. You are back to the main menu.",
+    },
+    "nothing_to_cancel": {
+        "it": "Non c'è nessuna operazione in corso da annullare.",
+        "en": "There is no operation in progress to cancel.",
+    },
+
     # Language
     "lang_choose": {
         "it": "Scegli la lingua:",
@@ -190,6 +208,7 @@ MESSAGES: Dict[str, Dict[str, str]] = {
         "it": "Lingua aggiornata.",
         "en": "Language updated.",
     },
+
     # Open door confirmation
     "confirm_open_question": {
         "it": "Sei sicuro di voler APRIRE la porta?",
@@ -281,7 +300,6 @@ def t(key: str, lang: str = DEFAULT_LANG, **kwargs) -> str:
     try:
         return template.format(**kwargs)
     except Exception:
-        # In case of missing kwargs, return the template as-is
         return template
 
 

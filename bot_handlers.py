@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import secrets
+from config import get_config
 from typing import List, Tuple, Optional, Dict
 
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
@@ -20,8 +21,9 @@ from users import (
     toggle_permission,
     ALL_PERMISSIONS,
     get_user_lang,
-    set_user_lang,
+    set_user_lang
 )
+
 from nuki import nuki_lock_action, nuki_lock_state, summarize_state
 from i18n import t, bt, DEFAULT_LANG
 
@@ -31,7 +33,6 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 # Helpers: menus and common responses
 # ---------------------------------------------------------------------------
-
 
 def build_main_menu(chat_id: int) -> InlineKeyboardMarkup:
     """Build the main inline keyboard for a given user."""
@@ -163,6 +164,21 @@ def _format_nuki_action_response(res: dict, op: Optional[str], lang: str) -> str
 # Commands
 # ---------------------------------------------------------------------------
 
+async def cmd_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Cancel current admin operation (like add_user wizard)."""
+    chat = update.effective_chat
+    lang = get_user_lang(chat.id)
+
+    if is_admin(chat.id) and context.user_data.get("mode"):
+        context.user_data["mode"] = None
+        text = t("operation_cancelled", lang)
+    else:
+        text = t("nothing_to_cancel", lang)
+
+    await update.effective_message.reply_text(
+        text,
+        reply_markup=build_main_menu(chat.id),
+    )
 
 async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     chat_id = update.effective_chat.id
@@ -184,24 +200,34 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await update.effective_message.reply_text(
         text, reply_markup=build_main_menu(chat_id)
     )
-
+    
+async def cmd_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    # Alias di /start
+    return await cmd_start(update, context)
 
 async def cmd_id(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     chat = update.effective_chat
-    lang = get_user_lang(chat.id)
     user = update.effective_user
+    lang = get_user_lang(chat.id)
 
-    text = (
-        f"chat_id: {chat.id}\n"
-        f"user_id: {user.id}\n"
-        f"username: @{user.username}\n"
-        f"first_name: {user.first_name}\n"
-        f"last_name: {user.last_name}"
-    )
+    lines = [
+        f"chat_id: {chat.id}",
+        f"user_id: {user.id}",
+    ]
+
+    # Info extra facoltative solo per te (admin)
+    if is_admin(chat.id):
+        username = f"@{user.username}" if user.username else "(none)"
+        lines.append(f"username: {username}")
+        lines.append(f"first_name: {user.first_name}")
+        lines.append(f"last_name: {user.last_name}")
+
+    text = "\n".join(lines)
+
     await update.effective_message.reply_text(
-        text, reply_markup=build_main_menu(chat.id)
+        text,
+        reply_markup=build_main_menu(chat.id),
     )
-
 
 async def _exec_nuki_action(
     chat_id: int,
@@ -354,30 +380,54 @@ def _build_user_edit_keyboard(chat_id: int, target_id: int) -> InlineKeyboardMar
 
     return InlineKeyboardMarkup(rows)
 
-
 async def _show_user_list(update: Update, chat_id: int) -> None:
-    """Show a list of users and a keyboard to select one to edit."""
+    """Show a list of users and a keyboard to select one to edit.
+
+    Gli owner (admin) definiti in OWNERS non vengono mostrati nella lista.
+    """
     lang = get_user_lang(chat_id)
     users_list = get_users_sorted()
-    if not users_list:
+
+    # Prendiamo la lista degli owner dal config
+    cfg = get_config()
+    owners = set(cfg.owners)
+
+    # Filtra fuori gli owner dalla lista utenti
+    visible_users = [(uid, ucfg) for uid, ucfg in users_list if uid not in owners]
+
+    if not visible_users:
         await update.effective_message.reply_text(t("no_users", lang))
         return
 
     lines = [t("users_title", lang)]
-    kb_rows: List[InlineKeyboardButton] = []
-    for uid, cfg in users_list:
-        name = cfg.get("name") or "(no name)"
+    kb_rows: List[List[InlineKeyboardButton]] = []
+
+    for uid, ucfg in visible_users:
+        name = ucfg.get("name") or "(no name)"
         lines.append(f"- {name} [{uid}]")
         kb_rows.append(
-            InlineKeyboardButton(
-                f"{name} ({uid})", callback_data=f"admin:edit:{uid}"
-            )
+            [
+                InlineKeyboardButton(
+                    f"{name} ({uid})", callback_data=f"admin:edit:{uid}"
+                )
+            ]
         )
 
-    kb = InlineKeyboardMarkup([[btn] for btn in kb_rows])
+    # Riga finale: bottone Back per tornare al menu admin
+    kb_rows.append(
+        [
+            InlineKeyboardButton(
+                bt("perm_back", lang),
+                callback_data="admin:back",
+            )
+        ]
+    )
+
+    kb = InlineKeyboardMarkup(kb_rows)
     await update.effective_message.reply_text(
         "\n".join(lines), reply_markup=kb
     )
+
 
 
 # ---------------------------------------------------------------------------
@@ -502,6 +552,8 @@ async def on_button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             return
 
         if cmd == "back":
+            # Uscita da qualsiasi "mode" admin (es. add_user)
+            context.user_data.pop("mode", None)
             await query.message.reply_text(
                 t("menu_actions", lang), reply_markup=build_main_menu(chat_id)
             )

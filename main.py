@@ -11,7 +11,9 @@ from telegram.ext import (
 from config import load_config, get_config
 from users import load_users
 from bot_handlers import (
+    cmd_cancel,
     cmd_start,
+    cmd_menu, 
     cmd_id,
     on_button,
     unknown_command,
@@ -36,7 +38,10 @@ def main() -> None:
     # Commands
     app.add_handler(CommandHandler("start", cmd_start))
     app.add_handler(CommandHandler("id", cmd_id))
-
+    app.add_handler(CommandHandler("menu", cmd_menu))
+    app.add_handler(CommandHandler("cancel", cmd_cancel))  
+    
+    
     # Inline buttons
     app.add_handler(CallbackQueryHandler(on_button))
 
