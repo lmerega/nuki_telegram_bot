@@ -210,4 +210,4 @@ sudo systemctl status nuki-bot.service
 
 ## License
 
-Choose a license and state it here (MIT, Apache 2.0, etc.).
+This project is licensed under the MIT License – see the LICENSE file for details.
