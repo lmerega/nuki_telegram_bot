@@ -23,14 +23,14 @@
 </p>
 
 > ⚠️ **Compatibility Notice**  
-> This bot works **ONLY** with **RaspiNukiBridge**.  
+> This bot works **ONLY** with **[RaspiNukiBridge](https://github.com/dauden1184/RaspiNukiBridge)**.  
 > It does **not** support the official Nuki Bridge HTTP API.
 
 ---
 
 ## Overview
 
-**Nuki Telegram Bot** is a self-hosted Telegram bot that lets you control a [Nuki](https://nuki.io/) Smart Lock through **RaspiNukiBridge** (running for example on a Raspberry Pi).  
+**Nuki Telegram Bot** is a self-hosted Telegram bot that lets you control a [Nuki](https://nuki.io/) Smart Lock through **[RaspiNukiBridge](https://github.com/dauden1184/RaspiNukiBridge)** (running for example on a Raspberry Pi).  
 It is designed to be simple, secure, production-ready and privacy-friendly.
 
 Main features include:
@@ -87,10 +87,10 @@ Permission keys (English only):
 
 ## Compatibility
 
-> This bot is **compatible only with RaspiNukiBridge**.  
+> This bot is **compatible only with [RaspiNukiBridge](https://github.com/dauden1184/RaspiNukiBridge)**.  
 > It cannot communicate with the official Nuki Bridge API.
 
-You must have RaspiNukiBridge running and accessible.  
+You must have **[RaspiNukiBridge](https://github.com/dauden1184/RaspiNukiBridge)** running and accessible.  
 The bot communicates exclusively with it.
 
 ---
@@ -111,7 +111,7 @@ Runtime user data is stored in `users.json`.
 ## Requirements
 
 - Python **3.10+**
-- A Nuki Smart Lock managed through **RaspiNukiBridge**
+- A Nuki Smart Lock managed through **[RaspiNukiBridge](https://github.com/dauden1184/RaspiNukiBridge)**
 - A Telegram bot token (`BotFather`)
 
 Install requirements:
@@ -251,7 +251,7 @@ sudo systemctl start nuki-bot.service
 
 - Never commit `.env` or `users.json`
 - Use a dedicated system user
-- Restrict access to RaspiNukiBridge
+- Restrict access to **[RaspiNukiBridge](https://github.com/dauden1184/RaspiNukiBridge)**
 - Unlatch confirmation requires one-time token
 - Keep system updated
 
