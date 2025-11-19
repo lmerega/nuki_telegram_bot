@@ -249,18 +249,28 @@ def revoke_all_permissions(chat_id: int) -> bool:
 
 
 def get_user_lang(chat_id: int) -> str:
-    """Return the preferred language for this user, defaulting to Italian."""
+    """Return the preferred language for this user.
+
+    Utenti sconosciuti (non presenti in users.json) → inglese forzato.
+    """
     cfg = _users.get(chat_id)
     if not cfg:
-        return "it"
+        # Utenti non presenti in users.json → lingua fissa English
+        return "en"
     return cfg.get("lang") or "it"
 
 
 def set_user_lang(chat_id: int, lang: str) -> None:
-    """Set the preferred language for this user."""
-    cfg = _users.get(chat_id) or {}
-    cfg.setdefault("name", "")
-    cfg.setdefault("allowed", [])
+    """Set the preferred language for this user.
+
+    Non crea nuovi utenti: funziona solo se il chat_id esiste già in _users.
+    """
+    cfg = _users.get(chat_id)
+    if not cfg:
+        # Non salvare nulla per utenti sconosciuti
+        logger.info("Ignoring set_user_lang for unknown chat_id %s", chat_id)
+        return
+
     cfg["lang"] = lang
     _users[chat_id] = cfg
     save_users()

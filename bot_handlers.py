@@ -34,6 +34,11 @@ logger = logging.getLogger(__name__)
 # Helpers: menus and common responses
 # ---------------------------------------------------------------------------
 
+def _is_stranger(chat_id: int) -> bool:
+    """True se NON è admin e NON è presente in users.json."""
+    return not is_admin(chat_id) and not is_known(chat_id)
+
+
 def build_main_menu(chat_id: int) -> InlineKeyboardMarkup:
     """Build the main inline keyboard for a given user."""
     lang = get_user_lang(chat_id)
@@ -88,7 +93,7 @@ def build_main_menu(chat_id: int) -> InlineKeyboardMarkup:
     )
     buttons.append(row3)
 
-    # Language selector (available for everyone)
+    # Language selector (available for known users)
     buttons.append(
         [
             InlineKeyboardButton(
@@ -167,6 +172,12 @@ def _format_nuki_action_response(res: dict, op: Optional[str], lang: str) -> str
 async def cmd_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Cancel current admin operation (like add_user wizard)."""
     chat = update.effective_chat
+    chat_id = chat.id
+
+    if _is_stranger(chat_id):
+        await update.effective_message.reply_text("Silence is golden")
+        return
+
     lang = get_user_lang(chat.id)
 
     if is_admin(chat.id) and context.user_data.get("mode"):
@@ -180,12 +191,14 @@ async def cmd_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
         reply_markup=build_main_menu(chat.id),
     )
 
+
 async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     chat_id = update.effective_chat.id
 
-    # Only admins can talk to the bot before being added as users
-    if not is_known(chat_id) and not is_admin(chat_id):
-        return await handle_unauthorized(update)
+    # Unknown users → no menu
+    if _is_stranger(chat_id):
+        await update.effective_message.reply_text("Silence is golden")
+        return
 
     lang = get_user_lang(chat_id)
 
@@ -200,34 +213,74 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await update.effective_message.reply_text(
         text, reply_markup=build_main_menu(chat_id)
     )
-    
+
+
 async def cmd_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     # Alias di /start
     return await cmd_start(update, context)
 
+
 async def cmd_id(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     chat = update.effective_chat
     user = update.effective_user
+
+    # Lingua da usare per i messaggi del bot verso questo utente
     lang = get_user_lang(chat.id)
 
-    lines = [
-        f"chat_id: {chat.id}",
-        f"user_id: {user.id}",
-    ]
+    cfg = get_user_cfg(chat.id)
+    known = cfg is not None
+    admin_flag = is_admin(chat.id)
 
-    # Info extra facoltative solo per te (admin)
-    if is_admin(chat.id):
-        username = f"@{user.username}" if user.username else "(none)"
-        lines.append(f"username: {username}")
-        lines.append(f"first_name: {user.first_name}")
-        lines.append(f"last_name: {user.last_name}")
+    lines = []
+
+    # --- Info Telegram ---
+    lines.append("Telegram:")
+    lines.append(f"- chat_id: {chat.id}")
+    lines.append(f"- user_id: {user.id}")
+
+    if user.username:
+        lines.append(f"- username: @{user.username}")
+    else:
+        lines.append(f"- username: (none)")
+
+    lines.append(f"- first_name: {user.first_name or '(none)'}")
+    lines.append(f"- last_name: {user.last_name or '(none)'}")
+
+    # language_code di Telegram (non quella del bot)
+    if getattr(user, "language_code", None):
+        lines.append(f"- telegram_lang: {user.language_code}")
+
+    lines.append("")  # riga vuota
+
+    # --- Info lato bot ---
+    lines.append("Bot:")
+    lines.append(f"- known_user: {'yes' if known else 'no'}")
+    lines.append(f"- admin: {'yes' if admin_flag else 'no'}")
+
+    if known:
+        name = cfg.get("name") or "(no name)"
+        user_lang = cfg.get("lang") or lang
+        allowed = cfg.get("allowed") or []
+
+        lines.append(f"- name: {name}")
+        lines.append(f"- lang: {user_lang}")
+
+        if allowed:
+            perms_str = ", ".join(sorted(allowed))
+        else:
+            perms_str = "(none)"
+        lines.append(f"- permissions: {perms_str}")
 
     text = "\n".join(lines)
 
+    # Per unknown users we do not show menu
+    reply_markup = build_main_menu(chat.id) if (known or admin_flag) else None
+
     await update.effective_message.reply_text(
         text,
-        reply_markup=build_main_menu(chat.id),
+        reply_markup=reply_markup,
     )
+
 
 async def _exec_nuki_action(
     chat_id: int,
@@ -257,6 +310,11 @@ async def _exec_nuki_action(
 
 async def cmd_lock(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     chat_id = update.effective_chat.id
+
+    if _is_stranger(chat_id):
+        await update.effective_message.reply_text("Silence is golden")
+        return
+
     if not can_do(chat_id, "lock"):
         return await handle_unauthorized(update)
     # Nuki lock action is 2
@@ -265,6 +323,11 @@ async def cmd_lock(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 async def cmd_unlock(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     chat_id = update.effective_chat.id
+
+    if _is_stranger(chat_id):
+        await update.effective_message.reply_text("Silence is golden")
+        return
+
     if not can_do(chat_id, "unlock"):
         return await handle_unauthorized(update)
     # Nuki unlock action is 1
@@ -281,6 +344,11 @@ async def _cmd_open_internal(
 
 async def cmd_lockngo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     chat_id = update.effective_chat.id
+
+    if _is_stranger(chat_id):
+        await update.effective_message.reply_text("Silence is golden")
+        return
+
     if not can_do(chat_id, "lockngo"):
         return await handle_unauthorized(update)
     # Nuki lock'n'go action is usually 4
@@ -289,6 +357,11 @@ async def cmd_lockngo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
 
 async def cmd_status(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     chat_id = update.effective_chat.id
+
+    if _is_stranger(chat_id):
+        await update.effective_message.reply_text("Silence is golden")
+        return
+
     if not can_do(chat_id, "status"):
         return await handle_unauthorized(update)
 
@@ -380,6 +453,7 @@ def _build_user_edit_keyboard(chat_id: int, target_id: int) -> InlineKeyboardMar
 
     return InlineKeyboardMarkup(rows)
 
+
 async def _show_user_list(update: Update, chat_id: int) -> None:
     """Show a list of users and a keyboard to select one to edit.
 
@@ -392,7 +466,7 @@ async def _show_user_list(update: Update, chat_id: int) -> None:
     cfg = get_config()
     owners = set(cfg.owners)
 
-    # Filtra fuori gli owner dalla lista utenti
+    # Filter out the owner
     visible_users = [(uid, ucfg) for uid, ucfg in users_list if uid not in owners]
 
     if not visible_users:
@@ -429,7 +503,6 @@ async def _show_user_list(update: Update, chat_id: int) -> None:
     )
 
 
-
 # ---------------------------------------------------------------------------
 # Callback query handler
 # ---------------------------------------------------------------------------
@@ -444,6 +517,11 @@ async def on_button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     chat_id = query.message.chat.id
     lang = get_user_lang(chat_id)
     user_data: Dict = context.user_data
+
+    # Estranei: nessuna azione su pulsanti
+    if _is_stranger(chat_id):
+        await query.message.reply_text("Silence is golden")
+        return
 
     # OPEN DOOR confirmation tokens are stored per-user
     open_tokens: Dict[str, bool] = user_data.setdefault("open_tokens", {})
@@ -653,6 +731,13 @@ async def on_button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 async def unknown_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle unknown /commands."""
     chat = update.effective_chat
+    chat_id = chat.id if chat else None
+
+    # Estranei → risposta fissa
+    if chat_id is not None and _is_stranger(chat_id):
+        await update.effective_message.reply_text("Silence is golden")
+        return
+
     lang = get_user_lang(chat.id) if chat else DEFAULT_LANG
     await update.effective_message.reply_text(
         t("unknown_command", lang), reply_markup=build_main_menu(chat.id)
@@ -662,6 +747,12 @@ async def unknown_command(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle plain text messages (non-commands)."""
     chat = update.effective_chat
+    chat_id = chat.id if chat else None
+
+    if chat_id is not None and _is_stranger(chat_id):
+        await update.effective_message.reply_text("Silence is golden")
+        return
+
     lang = get_user_lang(chat.id) if chat else DEFAULT_LANG
     text = (update.effective_message.text or "").strip()
 
