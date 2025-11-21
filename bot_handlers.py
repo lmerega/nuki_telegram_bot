@@ -6,7 +6,7 @@ from typing import List, Tuple, Optional, Dict
 
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
-from telegram.error import BadRequest
+from telegram.error import BadRequest, TelegramError
 
 from users import (
     is_admin,
@@ -511,8 +511,17 @@ async def _show_user_list(update: Update, chat_id: int) -> None:
 async def on_button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle all callback query interactions from inline keyboards."""
     query = update.callback_query
-    await query.answer()
-
+    # Try to answer the callback to stop the loading animation.
+    # If the message is too old (older than 48h), Telegram raises a BadRequest.
+    # We catch it so execution can continue (allowing old buttons to still work).
+    try:
+        await query.answer()
+    except (BadRequest, TelegramError):
+        # Ignore error for old queries, just proceed
+        pass
+    except Exception as exc:
+        logger.warning("Unexpected error answering callback: %s", exc)
+    
     data = query.data or ""
     chat_id = query.message.chat.id
     lang = get_user_lang(chat_id)
